@@ -1,0 +1,480 @@
+﻿@page "/"
+@inject HttpClient Http
+@using System.Text.Json
+@using System.Net.Http.Headers
+@implements IDisposable
+
+<MudContainer MaxWidth="MaxWidth.False" Style="min-height:100vh; padding-top:40px;">
+    <MudPaper Class="mx-auto pa-6" MaxWidth="700px" Style="background-color:#113F67; color:white; border-radius:18px; box-shadow:0px 8px 16px rgba(0,0,0,0.2);">
+
+        <MudText Typo="Typo.h5" Class="mb-2" Style="color:#FDF5AA;">📸 Upload Up to Two Photos to Generate Questions (Max 5MB each)</MudText>
+        <MudDivider Class="mb-4" Style="background-color:#58A0C8;" />
+
+        <MudGrid GutterSize="3">
+            <!-- Photo Slot 1 -->
+            <MudItem xs="12" sm="6">
+                <MudText Typo="Typo.subtitle1" Style="color:#FDF5AA;">🖼️ Photo 1</MudText>
+
+                <MudFileUpload T="IBrowserFile" FilesChanged="file => HandleMudUpload(file, 1)" AcceptedFormats="image/jpeg,image/png">
+                    <ActivatorContent>
+                        <MudButton Variant="Variant.Filled" Color="MudBlazor.Color.Primary" StartIcon="@Icons.Material.Filled.CloudUpload">
+                            Upload
+                        </MudButton>
+                    </ActivatorContent>
+                </MudFileUpload>
+
+                <MudFileUpload T="IBrowserFile" FilesChanged="file => HandleMudUpload(file, 1)" Capture="MudBlazor.CaptureMode.Environment" AcceptedFormats="image/jpeg,image/png">
+                    <ActivatorContent>
+                        <MudIconButton Icon="@Icons.Material.Filled.PhotoCamera" Color="MudBlazor.Color.Info" />
+                    </ActivatorContent>
+                </MudFileUpload>
+
+                @if (!string.IsNullOrEmpty(previewSlot1))
+                {
+                    <MudImage Src="@previewSlot1" Width="150" Class="mt-2" Elevation="4" Style="border-radius:12px;" />
+                }
+            </MudItem>
+
+            <!-- Photo Slot 2 -->
+            <MudItem xs="12" sm="6">
+                <MudText Typo="Typo.subtitle1" Style="color:#FDF5AA;">🖼️ Photo 2</MudText>
+
+                <MudFileUpload T="IBrowserFile" FilesChanged="file => HandleMudUpload(file, 2)" AcceptedFormats="image/jpeg,image/png">
+                    <ActivatorContent>
+                        <MudButton Variant="Variant.Filled" Color="MudBlazor.Color.Secondary" StartIcon="@Icons.Material.Filled.CloudUpload">
+                            Upload
+                        </MudButton>
+                    </ActivatorContent>
+                </MudFileUpload>
+
+                <MudFileUpload T="IBrowserFile" FilesChanged="file => HandleMudUpload(file, 2)" Capture="MudBlazor.CaptureMode.Environment" AcceptedFormats="image/jpeg,image/png">
+                    <ActivatorContent>
+                        <MudIconButton Icon="@Icons.Material.Filled.PhotoCamera" Color="MudBlazor.Color.Info" />
+                    </ActivatorContent>
+                </MudFileUpload>
+
+                @if (!string.IsNullOrEmpty(previewSlot2))
+                {
+                    <MudImage Src="@previewSlot2" Width="150" Class="mt-2" Elevation="4" Style="border-radius:12px;" />
+                }
+            </MudItem>
+        </MudGrid>
+
+        <MudGrid>
+            <MudItem xs="12" sm="6">
+                <MudSelect T="int" @bind-Value="questionCount" Label="Questions per Image" Class="mb-3">
+                    <MudSelectItem Value="5">5 (Default)</MudSelectItem>
+                    <MudSelectItem Value="10">10</MudSelectItem>
+                    <MudSelectItem Value="15">15</MudSelectItem>
+                </MudSelect>
+            </MudItem>
+            <MudItem xs="12" sm="6">
+                <MudSelect T="string" @bind-Value="questionType" Label="Question Type" Class="mb-3">
+                    <MudSelectItem Value="@("Questions")">Questions (Q&A)</MudSelectItem>
+                    <MudSelectItem Value="@("TrueFalse")">True/False</MudSelectItem>
+                    <MudSelectItem Value="@("Define")">Define</MudSelectItem>
+                </MudSelect>
+            </MudItem>
+        </MudGrid>
+
+        <!-- Generate Button -->
+        <MudButton OnClick="GenerateQuestions"
+                   Variant="Variant.Filled"
+                   Style="background-color:#58A0C8; color:black; font-weight:bold; width:100%; margin-top: 30px; margin-bottom: 20px;">
+            🧠 Generate Questions
+        </MudButton>
+
+        @if (isLoading)
+        {
+            <div class="d-flex align-center gap-2 mb-4">
+                <MudProgressCircular Indeterminate="true" Color="MudBlazor.Color.Warning" Size="MudBlazor.Size.Medium" />
+                <MudText Style="color:#FDF5AA;">⏳ Processing, please wait...</MudText>
+            </div>
+        }
+
+        @if (questionsSlot1.Count > 0)
+        {
+            <MudDivider Class="my-3" Style="background-color:#58A0C8;" />
+            <MudText Typo="Typo.h6" Class="mb-2" Style="color:#FDF5AA;">📷 Photo 1: Questions & Answers</MudText>
+            @foreach (var q in questionsSlot1)
+            {
+                <MudPaper Class="pa-3 my-2" Elevation="1" Style="background-color:#34699A; color:white; border-radius:10px;">
+                    <MudText Style="font-weight:bold; margin-bottom:8px;">Q: @q.Question</MudText>
+                    <MudText>Answer: @q.Answer</MudText>
+                </MudPaper>
+            }
+        }
+
+        @if (questionsSlot2.Count > 0)
+        {
+            <MudDivider Class="my-3" Style="background-color:#58A0C8;" />
+            <MudText Typo="Typo.h6" Class="mb-2" Style="color:#FDF5AA;">📷 Photo 2: Questions & Answers</MudText>
+            @foreach (var q in questionsSlot2)
+            {
+                <MudPaper Class="pa-3 my-2" Elevation="1" Style="background-color:#34699A; color:white; border-radius:10px;">
+                    <MudText Style="font-weight:bold; margin-bottom:8px;">Q: @q.Question</MudText>
+                    <MudText>Answer: @q.Answer</MudText>
+                </MudPaper>
+            }
+        }
+
+        @if (!string.IsNullOrWhiteSpace(errorMessage))
+        {
+            <MudAlert Severity="Severity.Error" Style="background-color:#FDF5AA; color:black;" Class="mt-3">
+                @errorMessage
+            </MudAlert>
+        }
+    </MudPaper>
+</MudContainer>
+
+@code {
+
+    private int questionCount = 5;
+    private string questionType = "Questions";
+    private const int MAX_FILE_SIZE = 5_242_880; // 5MB in bytes
+
+    private IBrowserFile? fileSlot1;
+    private IBrowserFile? fileSlot2;
+    private string? previewSlot1;
+    private string? previewSlot2;
+    private List<QA> questionsSlot1 = new();
+    private List<QA> questionsSlot2 = new();
+    private string? errorMessage;
+    private bool isLoading = false;
+
+    // Processed image data stored after processing (compressed with ImageKit)
+    private byte[]? processedImageSlot1;
+    private byte[]? processedImageSlot2;
+
+    // Timer for ImageKit cleanup
+    private Timer? _cleanupTimer;
+
+    protected override void OnInitialized()
+    {
+        base.OnInitialized();
+        StartCleanupTimer();
+    }
+
+    private void StartCleanupTimer()
+    {
+        // Random interval between 5-6 hours (18000000-21600000 milliseconds)
+        var random = new Random();
+        var intervalMs = random.Next(18000000, 21600001);
+
+        _cleanupTimer = new Timer(async _ => await CleanupImageKitStorage(), null, intervalMs, intervalMs);
+    }
+
+    private async Task CleanupImageKitStorage()
+    {
+        try
+        {
+            var response = await Http.GetAsync("/api/AI/cleanup-imagekit");
+            if (response.IsSuccessStatusCode)
+            {
+                Console.WriteLine("ImageKit cleanup completed successfully");
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"ImageKit cleanup error: {ex.Message}");
+        }
+    }
+
+    private async Task HandleMudUpload(IBrowserFile file, int slot)
+    {
+        errorMessage = null;
+
+        try
+        {
+            // Check file size limit (5MB)
+            if (file.Size > MAX_FILE_SIZE)
+            {
+                errorMessage = $"❌ File too large. Maximum size is 5MB.";
+                return;
+            }
+
+            // Read the original file
+            using var stream = file.OpenReadStream(MAX_FILE_SIZE);
+            using var ms = new MemoryStream();
+            await stream.CopyToAsync(ms);
+            var originalData = ms.ToArray();
+
+            // ✅ Skip compression if image is less than 1MB
+            byte[] finalData;
+            if (originalData.Length > 1_048_576)
+            {
+                finalData = await CompressWithImageKit(originalData, file.Name);
+            }
+            else
+            {
+                finalData = originalData;
+            }
+
+            // Create preview for UI
+            var base64 = Convert.ToBase64String(finalData);
+            var preview = $"data:image/jpeg;base64,{base64}";
+
+            if (slot == 1)
+            {
+                fileSlot1 = file;
+                previewSlot1 = preview;
+                processedImageSlot1 = finalData;
+            }
+            else
+            {
+                fileSlot2 = file;
+                previewSlot2 = preview;
+                processedImageSlot2 = finalData;
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Your image has not been processed. Please make sure your photo is vertical and not horizontal and please take a clear image.";
+        }
+    }
+
+    private async Task<byte[]> CompressWithImageKit(byte[] imageData, string fileName)
+    {
+        try
+        {
+            // Create multipart form data
+            using var form = new MultipartFormDataContent();
+            var imageContent = new ByteArrayContent(imageData);
+            imageContent.Headers.ContentType = new MediaTypeHeaderValue("image/jpeg");
+            form.Add(imageContent, "file", fileName);
+
+            // Call backend API to compress via ImageKit
+            var response = await Http.PostAsync("/api/AI/imagekit", form);
+
+            if (!response.IsSuccessStatusCode)
+            {
+                throw new Exception("Your image did not get processed. Please try again later.");
+            }
+
+            var responseContent = await response.Content.ReadAsStringAsync();
+            using var doc = JsonDocument.Parse(responseContent);
+            var imageUrl = doc.RootElement.GetProperty("url").GetString();
+
+            if (string.IsNullOrEmpty(imageUrl))
+            {
+                throw new Exception("ImageKit did not return a valid URL");
+            }
+
+            // Apply transformations to get compressed version
+            var compressedUrl = imageUrl.Replace("/upload/", "/upload/q-75,w-1024,h-1024,c-fit/");
+
+            // Download the compressed image
+            var compressedImageResponse = await Http.GetAsync(compressedUrl);
+            var compressedImageData = await compressedImageResponse.Content.ReadAsByteArrayAsync();
+
+            return compressedImageData;
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Image compression failed: {ex.Message}");
+            return imageData; // Fallback to original
+        }
+    }
+
+    private async Task GenerateQuestions()
+    {
+        errorMessage = null;
+        questionsSlot1.Clear();
+        questionsSlot2.Clear();
+        isLoading = true;
+
+        var tasks = new List<Task>();
+        if (processedImageSlot1 != null)
+            tasks.Add(ProcessImageData(processedImageSlot1, questionsSlot1));
+        if (processedImageSlot2 != null)
+            tasks.Add(ProcessImageData(processedImageSlot2, questionsSlot2));
+
+        try
+        {
+            await Task.WhenAll(tasks);
+        }
+        catch (Exception ex)
+        {
+            errorMessage = "❌ Error: " + ex.Message;
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private async Task ProcessImageData(byte[] imageData, List<QA> questionTarget)
+    {
+        var base64 = Convert.ToBase64String(imageData);
+
+        // Call backend OCR API
+        var ocrRequest = new { Base64 = base64 };
+        var ocrJson = JsonSerializer.Serialize(ocrRequest);
+        var ocrResponse = await Http.PostAsync(
+            "/api/AI/ocr",
+            new StringContent(ocrJson, System.Text.Encoding.UTF8, "application/json")
+        );
+
+        var ocrResult = await ocrResponse.Content.ReadAsStringAsync();
+        using var ocrDoc = JsonDocument.Parse(ocrResult);
+        var extractedText = ocrDoc.RootElement.GetProperty("ParsedResults")[0]
+            .GetProperty("ParsedText").GetString() ?? "";
+
+        if (string.IsNullOrWhiteSpace(extractedText))
+        {
+            errorMessage = "❌ No readable text found. Please upload clear, upright images.";
+            return;
+        }
+
+        // Try Gemini first
+        bool geminiWorked = await AskGemini(extractedText, questionTarget);
+        if (!geminiWorked)
+        {
+            await AskDeepSeek(extractedText, questionTarget);
+        }
+    }
+
+    private async Task<bool> AskGemini(string inputText, List<QA> targetList)
+    {
+        try
+        {
+            var request = new { Text = inputText, QuestionCount = questionCount, QuestionType = questionType };
+            var json = JsonSerializer.Serialize(request);
+            var response = await Http.PostAsync(
+                "/api/AI/gemini",
+                new StringContent(json, System.Text.Encoding.UTF8, "application/json")
+            );
+
+            if (!response.IsSuccessStatusCode)
+            {
+                Console.WriteLine($"Gemini API failed: {response.StatusCode}");
+                return false;
+            }
+
+            var result = await response.Content.ReadAsStringAsync();
+            Console.WriteLine($"Gemini Response: {result}");
+
+            using var doc = JsonDocument.Parse(result);
+            var content = doc.RootElement.GetProperty("candidates")[0]
+                .GetProperty("content").GetProperty("parts")[0]
+                .GetProperty("text").GetString();
+
+            Console.WriteLine($"Gemini Content: {content}");
+
+            // Handle JSON as escaped string
+            if (content.Trim().StartsWith("\"") && content.Contains("\\"))
+            {
+                content = JsonSerializer.Deserialize<string>(content);
+            }
+
+            // Remove markdown code blocks if present
+            content = content.Replace("```json", "").Replace("```", "").Trim();
+
+            var start = content.IndexOf('[');
+            var end = content.LastIndexOf(']');
+            if (start == -1 || end == -1 || end <= start)
+            {
+                Console.WriteLine("Invalid JSON structure from Gemini");
+                return false;
+            }
+
+            var jsonOnly = content.Substring(start, end - start + 1);
+            Console.WriteLine($"Extracted JSON: {jsonOnly}");
+
+            var options = new JsonSerializerOptions
+                {
+                    PropertyNameCaseInsensitive = true
+                };
+            var resultList = JsonSerializer.Deserialize<List<QA>>(jsonOnly, options) ?? new();
+
+            Console.WriteLine($"Parsed {resultList.Count} Q&A pairs");
+            foreach (var qa in resultList)
+            {
+                Console.WriteLine($"Q: {qa.Question}, A: {qa.Answer}");
+            }
+
+            targetList.AddRange(resultList);
+
+            return true;
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Gemini error: {ex.Message}");
+            return false;
+        }
+    }
+
+    private async Task AskDeepSeek(string inputText, List<QA> targetList)
+    {
+        try
+        {
+            var request = new { Text = inputText, QuestionCount = questionCount, QuestionType = questionType };
+            var json = JsonSerializer.Serialize(request);
+            var response = await Http.PostAsync(
+                "/api/AI/deepseek",
+                new StringContent(json, System.Text.Encoding.UTF8, "application/json")
+            );
+
+            if (!response.IsSuccessStatusCode)
+            {
+                Console.WriteLine($"DeepSeek API failed: {response.StatusCode}");
+                errorMessage = "Failed to generate questions. Please try again.";
+                return;
+            }
+
+            var result = await response.Content.ReadAsStringAsync();
+            Console.WriteLine($"DeepSeek Response: {result}");
+
+            using var doc = JsonDocument.Parse(result);
+            var content = doc.RootElement.GetProperty("choices")[0]
+                .GetProperty("message").GetProperty("content").GetString();
+
+            Console.WriteLine($"DeepSeek Content: {content}");
+
+            // Remove markdown code blocks if present
+            content = content.Replace("```json", "").Replace("```", "").Trim();
+
+            var start = content.IndexOf('[');
+            var end = content.LastIndexOf(']');
+            if (start == -1 || end == -1 || end <= start)
+            {
+                Console.WriteLine("Invalid JSON structure from DeepSeek");
+                errorMessage = "Failed to parse AI response. Please try again.";
+                return;
+            }
+
+            var jsonOnly = content.Substring(start, end - start + 1);
+            Console.WriteLine($"Extracted JSON: {jsonOnly}");
+
+            var options = new JsonSerializerOptions
+                {
+                    PropertyNameCaseInsensitive = true
+                };
+            var resultList = JsonSerializer.Deserialize<List<QA>>(jsonOnly, options) ?? new();
+
+            Console.WriteLine($"Parsed {resultList.Count} Q&A pairs");
+            foreach (var qa in resultList)
+            {
+                Console.WriteLine($"Q: {qa.Question}, A: {qa.Answer}");
+            }
+
+            targetList.AddRange(resultList);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"DeepSeek error: {ex.Message}");
+            errorMessage = "Failed. Please try again: " + ex.Message;
+        }
+    }
+
+    public void Dispose()
+    {
+        _cleanupTimer?.Dispose();
+    }
+
+    public class QA
+    {
+        public string Question { get; set; } = string.Empty;
+        public string Answer { get; set; } = string.Empty;
+    }
+}
