@@ -12,10 +12,10 @@ namespace AHHAHADSadas.Controllers
         private readonly HttpClient _http;
 
         private readonly string _ocrKey = "YOUR_OCR.SPACE_API_KEY";
-        private readonly string _geminiKey = "YOUR_OCR.SPACE_API_KEY";
-        private readonly string _deepseekKey = "YOUR_OCR.SPACE_API_KEY";
-        private readonly string _imagekitPrivate = "YOUR_OCR.SPACE_API_KEY";
-        private readonly string _imagekitUrl = "YOUR_OCR.SPACE_API_KEY";
+        private readonly string _geminiKey = "YOUR_GEMINI_API_KEY";
+        private readonly string _deepseekKey = "YOUR_DEEPSEEK_API_KEY";
+        private readonly string _imagekitPrivate = "YOUR_IMAGEKIT_API_KEY";
+        private readonly string _imagekitUrl = "YOUR_IMAGEKKIT_URL";
 
         public AIController(HttpClient http)
         {
